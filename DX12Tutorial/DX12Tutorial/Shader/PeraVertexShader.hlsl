@@ -14,7 +14,6 @@ VSOutput main(VSInput input)
 {
 	VSOutput output;
 	output.pos = input.pos;
-	output.pos.z = 0.5;
 	output.uv = input.uv;
 	return output;
 }

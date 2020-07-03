@@ -55,11 +55,11 @@ void Application::Initialize()
 		XMFLOAT4{ 1.0f, 0.0f, 0.0f, 1.0f }, // color
 		1.0f);                              // radius
 
-	//m_sphere2 = std::make_shared<Sphere>(
-	//	m_dx12,
-	//	XMFLOAT3{ -1.0f, 0.0f, -2.0f },      // position
-	//	XMFLOAT4{ 1.0f, 1.0f, 0.0f, 1.0f }, // color
-	//	0.5f);    // radius
+	m_sphere2 = std::make_shared<Sphere>(
+		m_dx12,
+		XMFLOAT3{ -1.0f, 0.0f, -2.0f },      // position
+		XMFLOAT4{ 1.0f, 1.0f, 0.0f, 1.0f }, // color
+		0.5f);    // radius
 
 	m_pera = std::make_shared<PeraPolygon>(m_dx12);
 }
@@ -67,7 +67,7 @@ void Application::Initialize()
 void Application::Run()
 {
 	Initialize();
-	m_dx12->SetBackGroundColor(1.0f, 1.0f, 1.0f);
+	m_dx12->SetBackGroundColor(0.5f, 0.5f, 0.5f);
 
 	MSG msg{};
 	while (msg.message != WM_QUIT)
@@ -83,10 +83,10 @@ void Application::Run()
 
 		m_dx12->Update();
 		m_sphere->Update();
-		//m_sphere2->Update();
+		m_sphere2->Update();
 
-		//m_sphere2->Draw();
 		m_sphere->Draw();
+		m_sphere2->Draw();
 
 		//m_pera->PreDrawPera();
 		//m_dx12->SetDepthTexture();

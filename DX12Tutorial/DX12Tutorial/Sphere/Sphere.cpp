@@ -8,56 +8,125 @@
 Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, float radius)
 	: m_dx12{ dx12 }
 	, m_position{ position }
+	, m_color{ color }
 	, m_radius{ radius }
 {
-	const int uMax = 30;
-	const int vMax = 15;
+	if (!CreateVertexBuffer())
+	{
+		assert(0);
+	}
+	if (!CreateVertexBufferView())
+	{
+		assert(0);
+	}
+	if (!CreateIndexBuffer())
+	{
+		assert(0);
+	}
+	if (!CreateIndexBufferView())
+	{
+		assert(0);
+	}
+	if (!CreateConstantBuffer())
+	{
+		assert(0);
+	}
+	if (!CreateCBVHeap())
+	{
+		assert(0);
+	}
+	if (!CreateConstantBufferView())
+	{
+		assert(0);
+	}
+	if (!CreateRootSignature())
+	{
+		assert(0);
+	}
+	if (!CreateVertexShader())
+	{
+		assert(0);
+	}
+	if (!CreatePixelShader())
+	{
+		assert(0);
+	}
+	if (!CreatePipelineState())
+	{
+		assert(0);
+	}
+}
 
-	m_vertexNum = uMax * (vMax + 1);
-	m_indexNum = 2 * vMax * (uMax + 1);
+Sphere::~Sphere()
+{
+}
 
+void Sphere::Update()
+{
+	m_angle += 0.01f;
+
+	// 定数バッファ更新
+	// こんな感じでいいのかな・・・？
+	ConstantBufferData* cbData{ nullptr };
+	m_constantBuffer->Map(0, nullptr, (void**)&cbData);
+	cbData->position = m_position;
+	cbData->radius = m_radius;
+	cbData->color = m_color;
+	cbData->world = XMMatrixTranslation(m_position.x, m_position.y, m_position.z) * XMMatrixRotationY(m_angle);
+	cbData->view = m_dx12.lock()->ViewMat();
+	cbData->projection = m_dx12.lock()->ProjectionMat();
+	m_constantBuffer->Unmap(0, nullptr);
+}
+
+void Sphere::Draw()
+{
+	// ルートシグネチャセット
+	m_dx12.lock()->CommandList()->SetGraphicsRootSignature(m_rootSignature.Get());
+
+	// パイプラインセット
+	m_dx12.lock()->CommandList()->SetPipelineState(m_pipelineState.Get());
+
+	// 頂点バッファービューセット
+	m_dx12.lock()->CommandList()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+
+	// インデックスバッファービューセット
+	m_dx12.lock()->CommandList()->IASetIndexBuffer(&m_indexBufferView);
+	
+	// ヒープセット
+	m_dx12.lock()->CommandList()->SetDescriptorHeaps(1, m_cbvHeap.GetAddressOf());
+	
+	// ヒープとルートパラメーターの関連付け
+	m_dx12.lock()->CommandList()->SetGraphicsRootDescriptorTable(
+		0,
+		m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+	
+	// プリミティブトポロジーセット
+	m_dx12.lock()->CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	
+	// ドローコール
+	m_dx12.lock()->CommandList()->DrawIndexedInstanced(m_indexNum, 1, 0, 0, 0);
+}
+
+bool Sphere::CreateVertexBuffer()
+{
+	m_vertexNum = m_uMax * (m_vMax + 1);
 	m_vertices.resize(m_vertexNum);
-	m_indices.resize(m_indexNum);
 
 	// 頂点データ作成
-	for (int v = 0; v <= vMax; v++)
+	for (int v = 0; v <= m_vMax; v++)
 	{
-		for (int u = 0; u < uMax; u++)
+		for (int u = 0; u < m_uMax; u++)
 		{
-			float theta = XMConvertToRadians(180.0f * v / vMax);
-			float phi = XMConvertToRadians(360.0f * u / uMax);
+			float theta = XMConvertToRadians(180.0f * v / m_vMax);
+			float phi = XMConvertToRadians(360.0f * u / m_uMax);
 
-			float x = std::sin(theta) * std::cos(phi) * m_radius;
-			float y = std::cos(theta) * m_radius;
-			float z = std::sin(theta) * std::sin(phi) * m_radius;
-			m_vertices[uMax * v + u] = XMFLOAT3(x, y, z);
+			float x = std::sin(theta) * std::cos(phi);
+			float y = std::cos(theta);
+			float z = std::sin(theta) * std::sin(phi);
+			m_vertices[m_uMax * v + u] = XMFLOAT3(x, y, z);
 		}
 	}
 
-	// インデックスデータ作成
-	int i = 0;
-	for (int v = 0; v < vMax; v++)
-	{
-		for (int u = 0; u <= uMax; u++)
-		{
-			if (u == uMax)
-			{
-				m_indices[i] = v * uMax;
-				i++;
-				m_indices[i] = (v + 1) * uMax;
-				i++;
-			}
-			else
-			{
-				m_indices[i] = (v * uMax) + u;
-				i++;
-				m_indices[i] = m_indices[i - 1] + uMax;
-				i++;
-			}
-		}
-	}
-
-	// それぞれのバッファーを作る
 	D3D12_HEAP_PROPERTIES heapProp{};
 	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
 	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -74,10 +143,8 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 	resDesc.SampleDesc.Count = 1;
 	resDesc.Width = sizeof(m_vertices[0]) * m_vertices.size();
 
-	sizeof(XMFLOAT3);
-
 	// 頂点バッファ作成
-	m_dx12.lock()->Device()->CreateCommittedResource(
+	auto result = m_dx12.lock()->Device()->CreateCommittedResource(
 		&heapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&resDesc,
@@ -85,20 +152,74 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 		nullptr,
 		IID_PPV_ARGS(m_vertexBuffer.ReleaseAndGetAddressOf()));
 
+	if (FAILED(result)) return false;
+
 	XMFLOAT3* vertMap{ nullptr };
-	m_vertexBuffer->Map(0, nullptr, (void**)&vertMap);
+	result = m_vertexBuffer->Map(0, nullptr, (void**)&vertMap);
+	
+	if (FAILED(result)) return false;
+	
 	std::copy(m_vertices.begin(), m_vertices.end(), vertMap);
 	m_vertexBuffer->Unmap(0, nullptr);
-	vertMap = nullptr;
 
-	// 頂点バッファービュー作成
+	return true;
+}
+
+bool Sphere::CreateVertexBufferView()
+{
 	m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 	m_vertexBufferView.SizeInBytes = m_vertexBuffer->GetDesc().Width;
 	m_vertexBufferView.StrideInBytes = sizeof(m_vertices[0]);
 
-	// インデックスバッファ作成
+	return true;
+}
+
+bool Sphere::CreateIndexBuffer()
+{
+	m_indexNum = 2 * m_vMax * (m_uMax + 1);
+	m_indices.resize(m_indexNum);
+
+	// インデックスデータ作成
+	int i = 0;
+	for (int v = 0; v < m_vMax; v++)
+	{
+		for (int u = 0; u <= m_uMax; u++)
+		{
+			if (u == m_uMax)
+			{
+				m_indices[i] = v * m_uMax;
+				i++;
+				m_indices[i] = (v + 1) * m_uMax;
+				i++;
+			}
+			else
+			{
+				m_indices[i] = (v * m_uMax) + u;
+				i++;
+				m_indices[i] = m_indices[i - 1] + m_uMax;
+				i++;
+			}
+		}
+	}
+
+	D3D12_HEAP_PROPERTIES heapProp{};
+	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+	D3D12_RESOURCE_DESC resDesc{};
+	resDesc.DepthOrArraySize = 1;
+	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	resDesc.Format = DXGI_FORMAT_UNKNOWN;
+	resDesc.Height = 1;
+	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	resDesc.MipLevels = 1;
+	resDesc.SampleDesc.Count = 1;
 	resDesc.Width = sizeof(m_indices[0]) * m_indices.size();
-	m_dx12.lock()->Device()->CreateCommittedResource(
+
+	// インデックスバッファ作成
+	auto result = m_dx12.lock()->Device()->CreateCommittedResource(
 		&heapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&resDesc,
@@ -106,20 +227,49 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 		nullptr,
 		IID_PPV_ARGS(m_indexBuffer.ReleaseAndGetAddressOf()));
 
+	if (FAILED(result)) return false;
+
 	unsigned int* indMap{ nullptr };
-	m_indexBuffer->Map(0, nullptr, (void**)&indMap);
+	result = m_indexBuffer->Map(0, nullptr, (void**)&indMap);
+	
+	if (FAILED(result)) return false;
+	
 	std::copy(m_indices.begin(), m_indices.end(), indMap);
 	m_indexBuffer->Unmap(0, nullptr);
-	indMap = nullptr;
 
+	return true;
+}
+
+bool Sphere::CreateIndexBufferView()
+{
 	// インデックスバッファービュー作成
 	m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
 	m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
 	m_indexBufferView.SizeInBytes = m_indexBuffer->GetDesc().Width;
 
+	return true;
+}
+
+bool Sphere::CreateConstantBuffer()
+{
+	D3D12_HEAP_PROPERTIES heapProp{};
+	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+	D3D12_RESOURCE_DESC resDesc{};
+	resDesc.DepthOrArraySize = 1;
+	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	resDesc.Format = DXGI_FORMAT_UNKNOWN;
+	resDesc.Height = 1;
+	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	resDesc.MipLevels = 1;
+	resDesc.SampleDesc.Count = 1;
+	resDesc.Width = (sizeof(ConstantBufferData) + 0xff) & ~0xff;
+
 	// 定数バッファ作成
-	resDesc.Width = (sizeof(*m_cbData) + 0xff) & ~0xff;
-	m_dx12.lock()->Device()->CreateCommittedResource(
+	auto result = m_dx12.lock()->Device()->CreateCommittedResource(
 		&heapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&resDesc,
@@ -127,24 +277,39 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 		nullptr,
 		IID_PPV_ARGS(m_constantBuffer.ReleaseAndGetAddressOf()));
 
-	m_constantBuffer->Map(0, nullptr, (void**)&m_cbData);
-	m_cbData->position = XMFLOAT4{ position.x, position.y, position.z, 0.0f };
-	m_cbData->color = color;
-	m_cbData->world = m_dx12.lock()->WorldMat() * XMMatrixTranslation(position.x, position.y, position.z);
-	m_cbData->view = m_dx12.lock()->ViewMat();
-	m_cbData->projection = m_dx12.lock()->ProjectionMat();
-	//m_constantBuffer->Unmap(0, nullptr);
-	//m_cbData = nullptr;
+	if (FAILED(result)) return false;
 
+	ConstantBufferData* mappedData{ nullptr };
+	m_constantBuffer->Map(0, nullptr, (void**)&mappedData);
+	mappedData->position = m_position;
+	mappedData->radius = m_radius;
+	mappedData->color = m_color;
+	mappedData->world = XMMatrixTranslation(m_position.x, m_position.y, m_position.z);
+	mappedData->view = m_dx12.lock()->ViewMat();
+	mappedData->projection = m_dx12.lock()->ProjectionMat();
+	m_constantBuffer->Unmap(0, nullptr);
+
+	return true;
+}
+
+bool Sphere::CreateCBVHeap()
+{
 	// 定数バッファビューのためのヒープ作成
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	heapDesc.NodeMask = 0;
 	heapDesc.NumDescriptors = 1;
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	m_dx12.lock()->Device()->CreateDescriptorHeap(
+	auto result = m_dx12.lock()->Device()->CreateDescriptorHeap(
 		&heapDesc, IID_PPV_ARGS(m_cbvHeap.ReleaseAndGetAddressOf()));
 
+	if (FAILED(result)) return false;
+
+	return true;
+}
+
+bool Sphere::CreateConstantBufferView()
+{
 	// 定数バッファービュー作成
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
 	cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
@@ -152,6 +317,11 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 	m_dx12.lock()->Device()->CreateConstantBufferView(
 		&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
 
+	return true;
+}
+
+bool Sphere::CreateRootSignature()
+{
 	// ルートシグネチャ作成
 	D3D12_DESCRIPTOR_RANGE range{};
 	range.NumDescriptors = 1;
@@ -177,6 +347,8 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 		&rsBlob,
 		nullptr);
 
+	if (FAILED(result)) return false;
+
 	result = m_dx12.lock()->Device()->CreateRootSignature(
 		0,
 		rsBlob->GetBufferPointer(),
@@ -185,8 +357,15 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 
 	rsBlob->Release();
 
+	if (FAILED(result)) return false;
+
+	return true;
+}
+
+bool Sphere::CreateVertexShader()
+{
 	// シェーダー作成
-	result = D3DCompileFromFile(
+	auto result = D3DCompileFromFile(
 		L"Shader/SphereVertexShader.hlsl",
 		nullptr,
 		nullptr,
@@ -197,7 +376,14 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 		m_vertexShader.ReleaseAndGetAddressOf(),
 		nullptr);
 
-	result = D3DCompileFromFile(
+	if (FAILED(result)) return false;
+
+	return true;
+}
+
+bool Sphere::CreatePixelShader()
+{
+	auto result = D3DCompileFromFile(
 		L"Shader/SpherePixelShader.hlsl",
 		nullptr,
 		nullptr,
@@ -208,10 +394,17 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 		m_pixelShader.ReleaseAndGetAddressOf(),
 		nullptr);
 
+	if (FAILED(result)) return false;
+
+	return true;
+}
+
+bool Sphere::CreatePipelineState()
+{
 	// インプットレイアウト作成
-	D3D12_INPUT_ELEMENT_DESC inputLayout[] = 
+	D3D12_INPUT_ELEMENT_DESC inputLayout[] =
 	{
-		{ "INPOSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
 	D3D12_RENDER_TARGET_BLEND_DESC blendDesc{};
@@ -248,7 +441,6 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 	plsDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
 	plsDesc.NumRenderTargets = 1;
-
 	plsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	plsDesc.SampleDesc.Count = 1;
@@ -260,46 +452,10 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 	plsDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 	plsDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	result = m_dx12.lock()->Device()->CreateGraphicsPipelineState(
+	auto result = m_dx12.lock()->Device()->CreateGraphicsPipelineState(
 		&plsDesc, IID_PPV_ARGS(m_pipelineState.ReleaseAndGetAddressOf()));
-}
 
-Sphere::~Sphere()
-{
-}
+	if (FAILED(result)) return false;
 
-void Sphere::Update()
-{
-	m_angle += 0.01f;
-	// 行列の情報を更新
-	m_cbData->world = XMMatrixTranslation(m_position.x, m_position.y, m_position.z) * XMMatrixRotationY(m_angle);
-}
-
-void Sphere::Draw()
-{
-	// ルートシグネチャセット
-	m_dx12.lock()->CommandList()->SetGraphicsRootSignature(m_rootSignature.Get());
-
-	// パイプラインセット
-	m_dx12.lock()->CommandList()->SetPipelineState(m_pipelineState.Get());
-
-	// 頂点バッファービューセット
-	m_dx12.lock()->CommandList()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-
-	// インデックスバッファービューセット
-	m_dx12.lock()->CommandList()->IASetIndexBuffer(&m_indexBufferView);
-	
-	// ヒープセット
-	m_dx12.lock()->CommandList()->SetDescriptorHeaps(1, m_cbvHeap.GetAddressOf());
-	
-	// ヒープとルートパラメーターの関連付け
-	m_dx12.lock()->CommandList()->SetGraphicsRootDescriptorTable(
-		0,
-		m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-	
-	// プリミティブトポロジーセット
-	m_dx12.lock()->CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	
-	// ドローコール
-	m_dx12.lock()->CommandList()->DrawIndexedInstanced(m_indexNum, 1, 0, 0, 0);
+	return true;
 }

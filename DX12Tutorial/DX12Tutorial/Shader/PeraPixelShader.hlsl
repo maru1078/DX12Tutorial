@@ -9,8 +9,6 @@ struct PSInput
 
 float4 main(PSInput input) : SV_TARGET
 {
-	return float4(input.pos.z, input.pos.z, input.pos.z, 1.0);
-	//return float4(input.uv, 0.0f, 1.0f);
-	float depth = depthTex.Sample(smp, input.uv);
+	float depth = pow(depthTex.Sample(smp, input.uv), 20);
     return float4(depth, depth, depth, 1.0);
 }

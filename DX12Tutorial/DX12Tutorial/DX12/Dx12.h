@@ -17,13 +17,31 @@ public:
 	Dx12(float windowWidth, float windowHeight, HWND hWnd);
 	~Dx12();
 
-	bool Initialize(float windowWidth, float windowHeight, HWND hWnd);
 	void SetBackGroundColor(float r, float g, float b);
 
 	void BeginDraw();
 	void Update();
 	void SetDepthTexture();
 	void EndDraw();
+
+private:
+
+	bool CreateDevice();
+	bool CreateFactory();
+	bool CreateCommandAllocator();
+	bool CreateCommandList();
+	bool CreateCommandQueue();
+	bool CreateSwapChain();
+	bool CreateFence();
+	bool CreateRTVHeap();
+	bool CreateRenderTargetView();
+	bool CreateViewPort();
+	bool CreateScissorRect();
+	bool CreateDepthStencilBuffer();
+	bool CreateDSVHeap();
+	bool CreateDepthStencilView();
+	bool CreateDepthSRVHeap();
+	bool CreateDepthShaderResourceView();
 
 public:
 
@@ -35,6 +53,9 @@ public:
 
 private:
 
+	float m_windowWidth;
+	float m_windowHeight;
+	HWND m_hWnd;
 	ComPtr<ID3D12Device> m_device{ nullptr };
 	ComPtr<IDXGIFactory6> m_factory{ nullptr };
 	ComPtr<IDXGISwapChain4> m_swapChain{ nullptr };
@@ -49,9 +70,12 @@ private:
 	D3D12_VIEWPORT m_viewPort{};
 	D3D12_RECT m_scissorRect{};
 	float m_clearColor[4]{ 0.0f, 0.0f, 0.0f, 0.0f };
-	XMMATRIX* m_world{ nullptr };
-	XMMATRIX* m_view{ nullptr };
-	XMMATRIX* m_projection{ nullptr };
+	//XMMATRIX* m_world{ nullptr };
+	//XMMATRIX* m_view{ nullptr };
+	//XMMATRIX* m_projection{ nullptr };
+	XMFLOAT3 m_eye{ 0.0f, 0.0f, -5.0f };
+	XMFLOAT3 m_target{ 0.0f, 0.0f, 0.0f };
+	XMFLOAT3 m_up{ 0.0f, 1.0f, 0.0f };
 	float m_angle{ 0.0f };
 	ComPtr<ID3D12Resource> m_depthBuffer{ nullptr };
 	ComPtr<ID3D12DescriptorHeap> m_depthHeap{ nullptr };

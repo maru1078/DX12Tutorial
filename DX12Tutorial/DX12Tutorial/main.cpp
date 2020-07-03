@@ -5,7 +5,7 @@
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
-	Application app{ 1920.0f, 1080.0f };
+	Application app{ 960, 540.0f };
 
 	app.Run();
 

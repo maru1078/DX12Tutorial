@@ -7,8 +7,49 @@
 PeraPolygon::PeraPolygon(std::weak_ptr<Dx12> dx12)
 	: m_dx12{ dx12 }
 {
+	if (!CreateVertexBuffer())
+	{
+		assert(0);
+	}
+	if (!CreateVertexBufferView())
+	{
+		assert(0);
+	}
+	if (!CreateRootSignature())
+	{
+		assert(0);
+	}
+	if (!CreateVertexShader())
+	{
+		assert(0);
+	}
+	if (!CreatePixelShader())
+	{
+		assert(0);
+	}
+	if (!CreatePipelineState())
+	{
+		assert(0);
+	}
+}
+
+void PeraPolygon::PreDrawPera()
+{
+	m_dx12.lock()->CommandList()->SetPipelineState(m_pipeline.Get());
+	m_dx12.lock()->CommandList()->SetGraphicsRootSignature(m_rootSignature.Get());
+}
+
+void PeraPolygon::DrawPera()
+{
+	m_dx12.lock()->CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	m_dx12.lock()->CommandList()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+	m_dx12.lock()->CommandList()->DrawInstanced(4, 1, 0, 0);
+}
+
+bool PeraPolygon::CreateVertexBuffer()
+{
 	// 頂点
-	PeraVertex vertices[] = 
+	PeraVertex vertices[] =
 	{
 		{ { -1.0f, -1.0f }, { 0.0f, 1.0f } }, // 左下
 		{ { -1.0f,  1.0f }, { 0.0f, 0.0f } }, // 左上
@@ -33,7 +74,7 @@ PeraPolygon::PeraPolygon(std::weak_ptr<Dx12> dx12)
 	resDesc.SampleDesc.Count = 1;
 	resDesc.Width = sizeof(vertices);
 
-	m_dx12.lock()->Device()->CreateCommittedResource(
+	auto result = m_dx12.lock()->Device()->CreateCommittedResource(
 		&heapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&resDesc,
@@ -41,17 +82,31 @@ PeraPolygon::PeraPolygon(std::weak_ptr<Dx12> dx12)
 		nullptr,
 		IID_PPV_ARGS(m_vertexBuffer.ReleaseAndGetAddressOf()));
 
+	if (FAILED(result)) return false;
+
 	PeraVertex* vertMap{ nullptr };
 	m_vertexBuffer->Map(0, nullptr, (void**)&vertMap);
+	
+	if (FAILED(result)) return false;
+	
 	std::copy(std::begin(vertices), std::end(vertices), vertMap);
 	m_vertexBuffer->Unmap(0, nullptr);
-	vertMap = nullptr;
 
+	return true;
+}
+
+bool PeraPolygon::CreateVertexBufferView()
+{
 	// 頂点バッファビュー
 	m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 	m_vertexBufferView.SizeInBytes = m_vertexBuffer->GetDesc().Width;
-	m_vertexBufferView.StrideInBytes = sizeof(vertices[0]);
+	m_vertexBufferView.StrideInBytes = sizeof(PeraVertex);
 
+	return true;
+}
+
+bool PeraPolygon::CreateRootSignature()
+{
 	// ルートシグネチャ
 	D3D12_DESCRIPTOR_RANGE range{};
 	range.NumDescriptors = 1;
@@ -91,17 +146,23 @@ PeraPolygon::PeraPolygon(std::weak_ptr<Dx12> dx12)
 		rsBlob.ReleaseAndGetAddressOf(),
 		nullptr);
 
-	m_dx12.lock()->Device()->CreateRootSignature(
+	if (FAILED(result)) return false;
+
+	result = m_dx12.lock()->Device()->CreateRootSignature(
 		0,
 		rsBlob->GetBufferPointer(),
 		rsBlob->GetBufferSize(),
 		IID_PPV_ARGS(m_rootSignature.ReleaseAndGetAddressOf()));
 
-	ComPtr<ID3DBlob> vs{ nullptr };
-	ComPtr<ID3DBlob> ps{ nullptr };
+	if (FAILED(result)) return false;
 
+	return true;
+}
+
+bool PeraPolygon::CreateVertexShader()
+{
 	// 頂点シェーダー
-	D3DCompileFromFile(
+	auto result = D3DCompileFromFile(
 		L"Shader/PeraVertexShader.hlsl",
 		nullptr,
 		nullptr,
@@ -109,11 +170,18 @@ PeraPolygon::PeraPolygon(std::weak_ptr<Dx12> dx12)
 		"vs_5_0",
 		D3DCOMPILE_SKIP_OPTIMIZATION,
 		0,
-		vs.ReleaseAndGetAddressOf(),
+		m_vertexShader.ReleaseAndGetAddressOf(),
 		nullptr);
 
+	if (FAILED(result)) return false;
+
+	return true;
+}
+
+bool PeraPolygon::CreatePixelShader()
+{
 	// ピクセルシェーダー
-	D3DCompileFromFile(
+	auto result = D3DCompileFromFile(
 		L"Shader/PeraPixelShader.hlsl",
 		nullptr,
 		nullptr,
@@ -121,9 +189,16 @@ PeraPolygon::PeraPolygon(std::weak_ptr<Dx12> dx12)
 		"ps_5_0",
 		D3DCOMPILE_SKIP_OPTIMIZATION,
 		0,
-		ps.ReleaseAndGetAddressOf(),
+		m_pixelShader.ReleaseAndGetAddressOf(),
 		nullptr);
 
+	if (FAILED(result)) return false;
+
+	return true;
+}
+
+bool PeraPolygon::CreatePipelineState()
+{
 	// インプットレイアウト
 	D3D12_INPUT_ELEMENT_DESC inputLayout[] =
 	{
@@ -136,14 +211,14 @@ PeraPolygon::PeraPolygon(std::weak_ptr<Dx12> dx12)
 	blendDesc.BlendEnable = false;
 	blendDesc.LogicOpEnable = false;
 	blendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	
+
 	// パイプライン
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC plsDesc{};
 	plsDesc.pRootSignature = m_rootSignature.Get();
-	plsDesc.VS.pShaderBytecode = vs->GetBufferPointer();
-	plsDesc.VS.BytecodeLength = vs->GetBufferSize();
-	plsDesc.PS.pShaderBytecode = ps->GetBufferPointer();
-	plsDesc.PS.BytecodeLength = ps->GetBufferSize();
+	plsDesc.VS.pShaderBytecode = m_vertexShader->GetBufferPointer();
+	plsDesc.VS.BytecodeLength = m_vertexShader->GetBufferSize();
+	plsDesc.PS.pShaderBytecode = m_pixelShader->GetBufferPointer();
+	plsDesc.PS.BytecodeLength = m_pixelShader->GetBufferSize();
 	plsDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 	plsDesc.RasterizerState.MultisampleEnable = false;
 	plsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
@@ -160,19 +235,10 @@ PeraPolygon::PeraPolygon(std::weak_ptr<Dx12> dx12)
 	plsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	plsDesc.SampleDesc.Count = 1;
 	plsDesc.SampleDesc.Quality = 0;
-	result = m_dx12.lock()->Device()->CreateGraphicsPipelineState(
+	auto result = m_dx12.lock()->Device()->CreateGraphicsPipelineState(
 		&plsDesc, IID_PPV_ARGS(m_pipeline.ReleaseAndGetAddressOf()));
-}
+	
+	if (FAILED(result)) return false;
 
-void PeraPolygon::PreDrawPera()
-{
-	m_dx12.lock()->CommandList()->SetPipelineState(m_pipeline.Get());
-	m_dx12.lock()->CommandList()->SetGraphicsRootSignature(m_rootSignature.Get());
-}
-
-void PeraPolygon::DrawPera()
-{
-	m_dx12.lock()->CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	m_dx12.lock()->CommandList()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	m_dx12.lock()->CommandList()->DrawInstanced(4, 1, 0, 0);
+	return true;
 }

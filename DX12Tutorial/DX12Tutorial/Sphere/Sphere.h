@@ -27,10 +27,30 @@ public:
 
 private:
 
+	bool CreateVertexBuffer();
+	bool CreateVertexBufferView();
+	bool CreateIndexBuffer();
+	bool CreateIndexBufferView();
+	bool CreateConstantBuffer();
+	bool CreateCBVHeap();
+	bool CreateConstantBufferView();
+	bool CreateRootSignature();
+	bool CreateVertexShader();
+	bool CreatePixelShader();
+	bool CreatePipelineState();
+
+
+private:
+
 	std::weak_ptr<Dx12> m_dx12;
 
-	float m_radius;
+	const int m_uMax{ 30 };
+	const int m_vMax{ 15 };
+
 	XMFLOAT3 m_position;
+	float m_radius;
+	XMFLOAT4 m_color;
+
 	float m_angle{ 0.0f };
 
 	// 頂点情報
@@ -49,6 +69,10 @@ private:
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView{};
 	// ルートシグネチャ
 	ComPtr<ID3D12RootSignature> m_rootSignature{ nullptr };
+	// 頂点シェーダー
+	ComPtr<ID3DBlob> m_vertexShader{ nullptr };
+	// ピクセルシェーダー
+	ComPtr<ID3DBlob> m_pixelShader{ nullptr };
 	// パイプライン
 	ComPtr<ID3D12PipelineState> m_pipelineState{ nullptr };
 	// 定数バッファ
@@ -61,14 +85,10 @@ private:
 		XMMATRIX world;
 		XMMATRIX view;
 		XMMATRIX projection;
-		XMFLOAT4 position;
+		XMFLOAT3 position;
+		float radius;
 		XMFLOAT4 color;
 	};
-
-	ConstantBufferData* m_cbData{ nullptr };
-
-	ComPtr<ID3DBlob> m_vertexShader{ nullptr };
-	ComPtr<ID3DBlob> m_pixelShader{ nullptr };
 };
 
 #endif // !SPHERE_H_
