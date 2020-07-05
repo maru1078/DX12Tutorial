@@ -1,9 +1,8 @@
-#ifndef SPHERE_H_
-#define SPHERE_H_
+#ifndef SPHERE_RENDERER_H_
+#define SPHERE_RENDERER_H_
 
 #include <memory>
 #include <d3d12.h>
-#include <dxgi1_6.h>
 #include <wrl.h>
 #include <vector>
 #include <DirectXMath.h>
@@ -12,29 +11,20 @@ using namespace Microsoft::WRL;
 using namespace DirectX;
 
 class Dx12;
+class Sphere;
 
-class Sphere
+class SphereRenderer
 {
 public:
 
-	Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, float radius);
-	~Sphere();
+	SphereRenderer(std::weak_ptr<Dx12> dx12);
 
-public:
+	void AddSphere(std::shared_ptr<Sphere> sphere);
 
 	void Update();
 	void Draw();
 
 public:
-
-	XMFLOAT3 Position() const;
-	XMFLOAT4 Color() const;
-	float Radius() const;
-	XMMATRIX World();
-
-private:
-
-	// ↓いったん保留↓
 
 	bool CreateVertexBuffer();
 	bool CreateVertexBufferView();
@@ -43,24 +33,21 @@ private:
 	bool CreateConstantBuffer();
 	bool CreateCBVHeap();
 	bool CreateConstantBufferView();
-
+	bool CreateRootSignature();
+	bool CreateVertexShader();
+	bool CreatePixelShader();
+	bool CreatePipelineState();
 
 private:
 
 	std::weak_ptr<Dx12> m_dx12;
+	std::vector<std::shared_ptr<Sphere>> m_spheres;
 
 	const int m_uMax{ 30 };
 	const int m_vMax{ 15 };
 
-	XMFLOAT3 m_position;
-	float m_radius;
-	XMFLOAT4 m_color;
-	float m_angle{ 0.0f };
-
-	// ↓いったん保留↓
-
-	// インデックス情報
 	unsigned int m_indexNum;
+
 	// 頂点バッファー
 	ComPtr<ID3D12Resource> m_vertexBuffer{ nullptr };
 	// 頂点バッファービュー
@@ -73,6 +60,14 @@ private:
 	ComPtr<ID3D12Resource> m_constantBuffer{ nullptr };
 	// 定数バッファー用ディスクリプターヒープ
 	ComPtr<ID3D12DescriptorHeap> m_cbvHeap{ nullptr };
+	// ルートシグネチャ
+	ComPtr<ID3D12RootSignature> m_rootSignature{ nullptr };
+	// 頂点シェーダー
+	ComPtr<ID3DBlob> m_vertexShader{ nullptr };
+	// ピクセルシェーダー
+	ComPtr<ID3DBlob> m_pixelShader{ nullptr };
+	// パイプライン
+	ComPtr<ID3D12PipelineState> m_pipelineState{ nullptr };
 
 	struct ConstantBufferData
 	{
@@ -85,5 +80,5 @@ private:
 	};
 };
 
-#endif // !SPHERE_H_
+#endif // !SPHERE_RENDERER_H_
 

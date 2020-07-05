@@ -3,9 +3,10 @@
 
 #include <Windows.h>
 #include <memory>
+#include <vector>
 
 class Dx12;
-class Sphere;
+class SphereRenderer;
 class PeraPolygon;
 
 class Application
@@ -27,8 +28,7 @@ private:
 	float m_windowWidth;
 	float m_windowHeight;
 	std::shared_ptr<Dx12> m_dx12;
-	std::shared_ptr<Sphere> m_sphere;
-	std::shared_ptr<Sphere> m_sphere2;
+	std::shared_ptr<SphereRenderer> m_sphereRenderer;
 	std::shared_ptr<PeraPolygon> m_pera;
 };
 

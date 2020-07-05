@@ -2,6 +2,7 @@
 
 #include "../DX12/Dx12.h"
 #include "../Sphere/Sphere.h"
+#include "../SphereRenderer/SphereRenderer.h"
 #include "../PeraPolygon/PeraPolygon.h"
 
 LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -49,17 +50,21 @@ void Application::Initialize()
 	ShowWindow(m_hWnd, SW_SHOW);
 
 	m_dx12 = std::make_shared<Dx12>(m_windowWidth, m_windowHeight, m_hWnd);
-	m_sphere = std::make_shared<Sphere>(
+	auto sphere1 = std::make_shared<Sphere>(
 		m_dx12,
 		XMFLOAT3{ 0.0f, 0.0f, 0.0f },       // position
 		XMFLOAT4{ 1.0f, 0.0f, 0.0f, 1.0f }, // color
 		1.0f);                              // radius
 
-	m_sphere2 = std::make_shared<Sphere>(
+	auto sphere2 = std::make_shared<Sphere>(
 		m_dx12,
 		XMFLOAT3{ -1.0f, 0.0f, -2.0f },      // position
 		XMFLOAT4{ 1.0f, 1.0f, 0.0f, 1.0f }, // color
 		0.5f);    // radius
+
+	m_sphereRenderer = std::make_shared<SphereRenderer>(m_dx12);
+	m_sphereRenderer->AddSphere(sphere1);
+	m_sphereRenderer->AddSphere(sphere2);
 
 	m_pera = std::make_shared<PeraPolygon>(m_dx12);
 }
@@ -81,12 +86,10 @@ void Application::Run()
 		// DirectX12‚Ìˆ—
 		m_dx12->BeginDraw();
 
-		m_dx12->Update();
-		m_sphere->Update();
-		m_sphere2->Update();
+		//m_dx12->Update();
 
-		m_sphere->Draw();
-		m_sphere2->Draw();
+		m_sphereRenderer->Update();
+		m_sphereRenderer->Draw();
 
 		//m_pera->PreDrawPera();
 		//m_dx12->SetDepthTexture();

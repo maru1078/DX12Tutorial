@@ -18,6 +18,10 @@ public:
 	~Dx12();
 
 	void SetBackGroundColor(float r, float g, float b);
+	void ExecuteCommandList();
+	void SetRenderTarget();
+	void SetViewPort();
+	void SetScissorRect();
 
 	void BeginDraw();
 	void Update();
@@ -25,6 +29,8 @@ public:
 	void EndDraw();
 
 private:
+
+	void ClearRenderTarget();
 
 	bool CreateDevice();
 	bool CreateFactory();
@@ -70,9 +76,6 @@ private:
 	D3D12_VIEWPORT m_viewPort{};
 	D3D12_RECT m_scissorRect{};
 	float m_clearColor[4]{ 0.0f, 0.0f, 0.0f, 0.0f };
-	//XMMATRIX* m_world{ nullptr };
-	//XMMATRIX* m_view{ nullptr };
-	//XMMATRIX* m_projection{ nullptr };
 	XMFLOAT3 m_eye{ 0.0f, 0.0f, -5.0f };
 	XMFLOAT3 m_target{ 0.0f, 0.0f, 0.0f };
 	XMFLOAT3 m_up{ 0.0f, 1.0f, 0.0f };

@@ -104,6 +104,49 @@ void Dx12::SetBackGroundColor(float r, float g, float b)
 	m_clearColor[2] = b;
 }
 
+void Dx12::ExecuteCommandList()
+{
+	m_cmdList->Close();
+
+	ID3D12CommandList* cmdLists[]{ m_cmdList.Get() };
+	m_cmdQueue->ExecuteCommandLists(1, cmdLists);
+
+	m_cmdQueue->Signal(m_fence.Get(), ++m_fenceVal);
+	while (m_fence->GetCompletedValue() != m_fenceVal)
+	{
+		auto event = CreateEvent(nullptr, false, false, nullptr);
+		m_fence->SetEventOnCompletion(m_fenceVal, event);
+		WaitForSingleObject(event, INFINITE);
+		CloseHandle(event);
+	}
+
+	m_cmdAllocator->Reset();
+	m_cmdList->Reset(m_cmdAllocator.Get(), nullptr);
+}
+
+void Dx12::SetRenderTarget()
+{
+	auto rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	rtvHandle.ptr += m_backBufferIndex
+		* m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	auto dsvHandle = m_depthHeap->GetCPUDescriptorHandleForHeapStart();
+
+	m_cmdList->OMSetRenderTargets(1, &rtvHandle, true, &dsvHandle);
+}
+
+void Dx12::SetViewPort()
+{
+	// ビューポートセット
+	m_cmdList->RSSetViewports(1, &m_viewPort);
+}
+
+void Dx12::SetScissorRect()
+{
+	// シザー矩形セット
+	m_cmdList->RSSetScissorRects(1, &m_scissorRect);
+}
+
 void Dx12::BeginDraw()
 {
 	m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
@@ -117,23 +160,14 @@ void Dx12::BeginDraw()
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	m_cmdList->ResourceBarrier(1, &barrier);
 
-	auto rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	rtvHandle.ptr += m_backBufferIndex 
-		* m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	SetRenderTarget();
 
-	auto dsvHandle = m_depthHeap->GetCPUDescriptorHandleForHeapStart();
+	ClearRenderTarget();
 
-	m_cmdList->OMSetRenderTargets(1, &rtvHandle, true, &dsvHandle);
+	SetViewPort();
 
-	m_cmdList->ClearRenderTargetView(rtvHandle, m_clearColor, 0, nullptr);
+	SetScissorRect();
 
-	m_cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-	// ビューポートセット
-	m_cmdList->RSSetViewports(1, &m_viewPort);
-
-	// シザー矩形セット
-	m_cmdList->RSSetScissorRects(1, &m_scissorRect);
 }
 
 void Dx12::Update()
@@ -159,23 +193,21 @@ void Dx12::EndDraw()
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	m_cmdList->ResourceBarrier(1, &barrier);
 
-	m_cmdList->Close();
-
-	ID3D12CommandList* cmdLists[]{ m_cmdList.Get() };
-	m_cmdQueue->ExecuteCommandLists(1, cmdLists);
-
-	m_cmdQueue->Signal(m_fence.Get(), ++m_fenceVal);
-	while (m_fence->GetCompletedValue() != m_fenceVal)
-	{
-		auto event = CreateEvent(nullptr, false, false, nullptr);
-		m_fence->SetEventOnCompletion(m_fenceVal, event);
-		WaitForSingleObject(event, INFINITE);
-		CloseHandle(event);
-	}
-
-	m_cmdAllocator->Reset();
-	m_cmdList->Reset(m_cmdAllocator.Get(), nullptr);
+	ExecuteCommandList();
 	m_swapChain->Present(1, 0);
+}
+
+void Dx12::ClearRenderTarget()
+{
+	auto rtvHandle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	rtvHandle.ptr += m_backBufferIndex
+		* m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	m_cmdList->ClearRenderTargetView(rtvHandle, m_clearColor, 0, nullptr);
+
+	auto dsvHandle = m_depthHeap->GetCPUDescriptorHandleForHeapStart();
+
+	m_cmdList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 }
 
 bool Dx12::CreateDevice()

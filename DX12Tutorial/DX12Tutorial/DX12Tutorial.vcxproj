@@ -126,12 +126,14 @@
     <ClCompile Include="DX12\Dx12.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PeraPolygon\PeraPolygon.cpp" />
+    <ClCompile Include="SphereRenderer\SphereRenderer.cpp" />
     <ClCompile Include="Sphere\Sphere.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application\Application.h" />
     <ClInclude Include="DX12\Dx12.h" />
     <ClInclude Include="PeraPolygon\PeraPolygon.h" />
+    <ClInclude Include="SphereRenderer\SphereRenderer.h" />
     <ClInclude Include="Sphere\Sphere.h" />
   </ItemGroup>
   <ItemGroup>

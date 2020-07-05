@@ -11,50 +11,34 @@ Sphere::Sphere(std::weak_ptr<Dx12> dx12, XMFLOAT3 position, XMFLOAT4 color, floa
 	, m_color{ color }
 	, m_radius{ radius }
 {
-	if (!CreateVertexBuffer())
-	{
-		assert(0);
-	}
-	if (!CreateVertexBufferView())
-	{
-		assert(0);
-	}
-	if (!CreateIndexBuffer())
-	{
-		assert(0);
-	}
-	if (!CreateIndexBufferView())
-	{
-		assert(0);
-	}
-	if (!CreateConstantBuffer())
-	{
-		assert(0);
-	}
-	if (!CreateCBVHeap())
-	{
-		assert(0);
-	}
-	if (!CreateConstantBufferView())
-	{
-		assert(0);
-	}
-	if (!CreateRootSignature())
-	{
-		assert(0);
-	}
-	if (!CreateVertexShader())
-	{
-		assert(0);
-	}
-	if (!CreatePixelShader())
-	{
-		assert(0);
-	}
-	if (!CreatePipelineState())
-	{
-		assert(0);
-	}
+	//if (!CreateVertexBuffer())
+	//{
+	//	assert(0);
+	//}
+	//if (!CreateVertexBufferView())
+	//{
+	//	assert(0);
+	//}
+	//if (!CreateIndexBuffer())
+	//{
+	//	assert(0);
+	//}
+	//if (!CreateIndexBufferView())
+	//{
+	//	assert(0);
+	//}
+	//if (!CreateConstantBuffer())
+	//{
+	//	assert(0);
+	//}
+	//if (!CreateCBVHeap())
+	//{
+	//	assert(0);
+	//}
+	//if (!CreateConstantBufferView())
+	//{
+	//	assert(0);
+	//}
 }
 
 Sphere::~Sphere()
@@ -65,27 +49,21 @@ void Sphere::Update()
 {
 	m_angle += 0.01f;
 
-	// 定数バッファ更新
-	// こんな感じでいいのかな・・・？
-	ConstantBufferData* cbData{ nullptr };
-	m_constantBuffer->Map(0, nullptr, (void**)&cbData);
-	cbData->position = m_position;
-	cbData->radius = m_radius;
-	cbData->color = m_color;
-	cbData->world = XMMatrixTranslation(m_position.x, m_position.y, m_position.z) * XMMatrixRotationY(m_angle);
-	cbData->view = m_dx12.lock()->ViewMat();
-	cbData->projection = m_dx12.lock()->ProjectionMat();
-	m_constantBuffer->Unmap(0, nullptr);
+	//// 定数バッファ更新
+	//// こんな感じでいいのかな・・・？
+	//ConstantBufferData* cbData{ nullptr };
+	//m_constantBuffer->Map(0, nullptr, (void**)&cbData);
+	//cbData->position = m_position;
+	//cbData->radius = m_radius;
+	//cbData->color = m_color;
+	//cbData->world = XMMatrixTranslation(m_position.x, m_position.y, m_position.z) * XMMatrixRotationY(m_angle);
+	//cbData->view = m_dx12.lock()->ViewMat();
+	//cbData->projection = m_dx12.lock()->ProjectionMat();
+	//m_constantBuffer->Unmap(0, nullptr);
 }
 
 void Sphere::Draw()
 {
-	// ルートシグネチャセット
-	m_dx12.lock()->CommandList()->SetGraphicsRootSignature(m_rootSignature.Get());
-
-	// パイプラインセット
-	m_dx12.lock()->CommandList()->SetPipelineState(m_pipelineState.Get());
-
 	// 頂点バッファービューセット
 	m_dx12.lock()->CommandList()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 
@@ -107,10 +85,33 @@ void Sphere::Draw()
 	m_dx12.lock()->CommandList()->DrawIndexedInstanced(m_indexNum, 1, 0, 0, 0);
 }
 
+XMFLOAT3 Sphere::Position() const
+{
+	return m_position;
+}
+
+XMFLOAT4 Sphere::Color() const
+{
+	return m_color;
+}
+
+float Sphere::Radius() const
+{
+	return m_radius;
+}
+
+XMMATRIX Sphere::World()
+{
+	return XMMatrixTranslation(m_position.x, m_position.y, m_position.z) * XMMatrixRotationY(m_angle);
+}
+
+// ↓いったん保留↓
+
 bool Sphere::CreateVertexBuffer()
 {
-	m_vertexNum = m_uMax * (m_vMax + 1);
-	m_vertices.resize(m_vertexNum);
+	unsigned int vertexNum;
+	vertexNum = m_uMax * (m_vMax + 1);
+	std::vector<XMFLOAT3> vertices(vertexNum);
 
 	// 頂点データ作成
 	for (int v = 0; v <= m_vMax; v++)
@@ -123,7 +124,7 @@ bool Sphere::CreateVertexBuffer()
 			float x = std::sin(theta) * std::cos(phi);
 			float y = std::cos(theta);
 			float z = std::sin(theta) * std::sin(phi);
-			m_vertices[m_uMax * v + u] = XMFLOAT3(x, y, z);
+			vertices[m_uMax * v + u] = XMFLOAT3(x, y, z);
 		}
 	}
 
@@ -141,7 +142,7 @@ bool Sphere::CreateVertexBuffer()
 	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	resDesc.MipLevels = 1;
 	resDesc.SampleDesc.Count = 1;
-	resDesc.Width = sizeof(m_vertices[0]) * m_vertices.size();
+	resDesc.Width = sizeof(vertices[0]) * vertices.size();
 
 	// 頂点バッファ作成
 	auto result = m_dx12.lock()->Device()->CreateCommittedResource(
@@ -159,7 +160,7 @@ bool Sphere::CreateVertexBuffer()
 	
 	if (FAILED(result)) return false;
 	
-	std::copy(m_vertices.begin(), m_vertices.end(), vertMap);
+	std::copy(vertices.begin(), vertices.end(), vertMap);
 	m_vertexBuffer->Unmap(0, nullptr);
 
 	return true;
@@ -169,7 +170,7 @@ bool Sphere::CreateVertexBufferView()
 {
 	m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 	m_vertexBufferView.SizeInBytes = m_vertexBuffer->GetDesc().Width;
-	m_vertexBufferView.StrideInBytes = sizeof(m_vertices[0]);
+	m_vertexBufferView.StrideInBytes = sizeof(XMFLOAT3);
 
 	return true;
 }
@@ -177,7 +178,7 @@ bool Sphere::CreateVertexBufferView()
 bool Sphere::CreateIndexBuffer()
 {
 	m_indexNum = 2 * m_vMax * (m_uMax + 1);
-	m_indices.resize(m_indexNum);
+	std::vector<unsigned short> indices(m_indexNum);
 
 	// インデックスデータ作成
 	int i = 0;
@@ -187,16 +188,16 @@ bool Sphere::CreateIndexBuffer()
 		{
 			if (u == m_uMax)
 			{
-				m_indices[i] = v * m_uMax;
+				indices[i] = v * m_uMax;
 				i++;
-				m_indices[i] = (v + 1) * m_uMax;
+				indices[i] = (v + 1) * m_uMax;
 				i++;
 			}
 			else
 			{
-				m_indices[i] = (v * m_uMax) + u;
+				indices[i] = (v * m_uMax) + u;
 				i++;
-				m_indices[i] = m_indices[i - 1] + m_uMax;
+				indices[i] = indices[i - 1] + m_uMax;
 				i++;
 			}
 		}
@@ -216,7 +217,7 @@ bool Sphere::CreateIndexBuffer()
 	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	resDesc.MipLevels = 1;
 	resDesc.SampleDesc.Count = 1;
-	resDesc.Width = sizeof(m_indices[0]) * m_indices.size();
+	resDesc.Width = sizeof(indices[0]) * indices.size();
 
 	// インデックスバッファ作成
 	auto result = m_dx12.lock()->Device()->CreateCommittedResource(
@@ -229,12 +230,12 @@ bool Sphere::CreateIndexBuffer()
 
 	if (FAILED(result)) return false;
 
-	unsigned int* indMap{ nullptr };
+	unsigned short* indMap{ nullptr };
 	result = m_indexBuffer->Map(0, nullptr, (void**)&indMap);
 	
 	if (FAILED(result)) return false;
 	
-	std::copy(m_indices.begin(), m_indices.end(), indMap);
+	std::copy(indices.begin(), indices.end(), indMap);
 	m_indexBuffer->Unmap(0, nullptr);
 
 	return true;
@@ -244,7 +245,7 @@ bool Sphere::CreateIndexBufferView()
 {
 	// インデックスバッファービュー作成
 	m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
-	m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+	m_indexBufferView.Format = DXGI_FORMAT_R16_UINT;
 	m_indexBufferView.SizeInBytes = m_indexBuffer->GetDesc().Width;
 
 	return true;
@@ -316,146 +317,6 @@ bool Sphere::CreateConstantBufferView()
 	cbvDesc.SizeInBytes = m_constantBuffer->GetDesc().Width;
 	m_dx12.lock()->Device()->CreateConstantBufferView(
 		&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
-
-	return true;
-}
-
-bool Sphere::CreateRootSignature()
-{
-	// ルートシグネチャ作成
-	D3D12_DESCRIPTOR_RANGE range{};
-	range.NumDescriptors = 1;
-	range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	range.BaseShaderRegister = 0;
-	range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	D3D12_ROOT_PARAMETER rootParam{};
-	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rootParam.DescriptorTable.NumDescriptorRanges = 1;
-	rootParam.DescriptorTable.pDescriptorRanges = &range;
-
-	D3D12_ROOT_SIGNATURE_DESC rsDesc{};
-	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	rsDesc.NumParameters = 1;
-	rsDesc.pParameters = &rootParam;
-
-	ID3DBlob* rsBlob{ nullptr };
-	auto result = D3D12SerializeRootSignature(
-		&rsDesc,
-		D3D_ROOT_SIGNATURE_VERSION_1_0,
-		&rsBlob,
-		nullptr);
-
-	if (FAILED(result)) return false;
-
-	result = m_dx12.lock()->Device()->CreateRootSignature(
-		0,
-		rsBlob->GetBufferPointer(),
-		rsBlob->GetBufferSize(),
-		IID_PPV_ARGS(m_rootSignature.ReleaseAndGetAddressOf()));
-
-	rsBlob->Release();
-
-	if (FAILED(result)) return false;
-
-	return true;
-}
-
-bool Sphere::CreateVertexShader()
-{
-	// シェーダー作成
-	auto result = D3DCompileFromFile(
-		L"Shader/SphereVertexShader.hlsl",
-		nullptr,
-		nullptr,
-		"main",
-		"vs_5_0",
-		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
-		0,
-		m_vertexShader.ReleaseAndGetAddressOf(),
-		nullptr);
-
-	if (FAILED(result)) return false;
-
-	return true;
-}
-
-bool Sphere::CreatePixelShader()
-{
-	auto result = D3DCompileFromFile(
-		L"Shader/SpherePixelShader.hlsl",
-		nullptr,
-		nullptr,
-		"main",
-		"ps_5_0",
-		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
-		0,
-		m_pixelShader.ReleaseAndGetAddressOf(),
-		nullptr);
-
-	if (FAILED(result)) return false;
-
-	return true;
-}
-
-bool Sphere::CreatePipelineState()
-{
-	// インプットレイアウト作成
-	D3D12_INPUT_ELEMENT_DESC inputLayout[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-	};
-
-	D3D12_RENDER_TARGET_BLEND_DESC blendDesc{};
-	blendDesc.BlendEnable = false;
-	blendDesc.LogicOpEnable = false;
-	blendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-	// パイプライン作成
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC plsDesc{};
-	plsDesc.pRootSignature = m_rootSignature.Get();
-
-	plsDesc.VS.pShaderBytecode = m_vertexShader->GetBufferPointer();
-	plsDesc.VS.BytecodeLength = m_vertexShader->GetBufferSize();
-
-	plsDesc.PS.pShaderBytecode = m_pixelShader->GetBufferPointer();
-	plsDesc.PS.BytecodeLength = m_pixelShader->GetBufferSize();
-
-	plsDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
-	plsDesc.RasterizerState.MultisampleEnable = false;
-	plsDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-	plsDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-	plsDesc.RasterizerState.DepthClipEnable = true;
-
-	plsDesc.BlendState.AlphaToCoverageEnable = false;
-	plsDesc.BlendState.IndependentBlendEnable = false;
-	plsDesc.BlendState.RenderTarget[0] = blendDesc;
-
-	plsDesc.InputLayout.pInputElementDescs = inputLayout;
-	plsDesc.InputLayout.NumElements = _countof(inputLayout);
-
-	plsDesc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
-
-	plsDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-	plsDesc.NumRenderTargets = 1;
-	plsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-	plsDesc.SampleDesc.Count = 1;
-	plsDesc.SampleDesc.Quality = 0;
-
-	plsDesc.DepthStencilState.StencilEnable = false;
-	plsDesc.DepthStencilState.DepthEnable = true;
-	plsDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	plsDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-	plsDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-
-	auto result = m_dx12.lock()->Device()->CreateGraphicsPipelineState(
-		&plsDesc, IID_PPV_ARGS(m_pipelineState.ReleaseAndGetAddressOf()));
-
-	if (FAILED(result)) return false;
 
 	return true;
 }
