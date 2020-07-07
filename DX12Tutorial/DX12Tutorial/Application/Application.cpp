@@ -3,6 +3,7 @@
 #include "../DX12/Dx12.h"
 #include "../SphereRenderer/SphereRenderer.h"
 #include "../PeraPolygon/PeraPolygon.h"
+#include "../LineDrawer/LineDrawer.h"
 
 LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -64,6 +65,8 @@ void Application::Initialize()
 		0.5f
 	);
 
+	m_lineDrawer = std::make_shared<LineDrawer>(m_dx12, XMFLOAT4{ 1.0f, 1.0f, 1.0f, 1.0f });
+
 	m_pera = std::make_shared<PeraPolygon>(m_dx12);
 }
 
@@ -94,6 +97,8 @@ void Application::Run()
 
 		m_sphereRenderer->Update();
 		m_sphereRenderer->Draw();
+
+		m_lineDrawer->Draw();
 
 		//m_pera->PreDrawPera();
 		//m_dx12->SetDepthTexture();
