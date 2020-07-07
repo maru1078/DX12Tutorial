@@ -12,6 +12,7 @@ using namespace DirectX;
 
 class Dx12;
 
+// ü‚ğ•`‰æ‚·‚é‚½‚ß‚ÌƒNƒ‰ƒX
 class LineDrawer
 {
 public:
