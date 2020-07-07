@@ -1,6 +1,6 @@
 #include "SphereRenderer.h"
 #include "../DX12/Dx12.h"
-#include "../Sphere/Sphere.h"
+#include "../SphereData/SphereData.h"
 
 #include <d3dcompiler.h>
 #pragma comment(lib, "d3dcompiler.lib")
@@ -54,40 +54,27 @@ SphereRenderer::SphereRenderer(std::weak_ptr<Dx12> dx12)
 	}
 }
 
-void SphereRenderer::AddSphere(std::shared_ptr<Sphere> sphere)
+std::weak_ptr<SphereData> SphereRenderer::CreateSphere(const XMFLOAT3& position, const XMFLOAT4& color, float radius)
 {
+	auto sphere = std::make_shared<SphereData>(position, color, radius);
 	m_spheres.push_back(sphere);
+	return sphere;
 }
 
 void SphereRenderer::Update()
 {
-	for (auto sphere : m_spheres)
-	{
-		sphere->Update();
-	}
 }
 
 void SphereRenderer::Draw()
 {
-	//// ルートシグネチャセット
-	//m_dx12.lock()->CommandList()->SetGraphicsRootSignature(m_rootSignature.Get());
-
-	//// パイプラインセット
-	//m_dx12.lock()->CommandList()->SetPipelineState(m_pipelineState.Get());
-
-	//for (auto sphere : m_spheres)
-	//{
-	//	sphere->Draw();
-	//}
-
 	for (auto sphere : m_spheres)
 	{
 		// 定数バッファ更新
 		ConstantBufferData* mappedData{ nullptr };
 		m_constantBuffer->Map(0, nullptr, (void**)&mappedData);
-		mappedData->position = sphere->Position();
-		mappedData->radius = sphere->Radius();
-		mappedData->color = sphere->Color();
+		mappedData->position = sphere->position;
+		mappedData->radius = sphere->radius;
+		mappedData->color = sphere->color;
 		mappedData->world = sphere->World();
 		mappedData->view = m_dx12.lock()->ViewMat();
 		mappedData->projection = m_dx12.lock()->ProjectionMat();

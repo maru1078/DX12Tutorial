@@ -22,6 +22,7 @@ public:
 	void SetRenderTarget();
 	void SetViewPort();
 	void SetScissorRect();
+	void SetEyePosition(const XMFLOAT3& position);
 
 	void BeginDraw();
 	void Update();
@@ -53,7 +54,6 @@ public:
 
 	ComPtr<ID3D12Device> Device() const;
 	ComPtr<ID3D12GraphicsCommandList> CommandList() const;
-	XMMATRIX WorldMat() const;
 	XMMATRIX ViewMat() const;
 	XMMATRIX ProjectionMat() const;
 
@@ -79,7 +79,6 @@ private:
 	XMFLOAT3 m_eye{ 0.0f, 0.0f, -5.0f };
 	XMFLOAT3 m_target{ 0.0f, 0.0f, 0.0f };
 	XMFLOAT3 m_up{ 0.0f, 1.0f, 0.0f };
-	float m_angle{ 0.0f };
 	ComPtr<ID3D12Resource> m_depthBuffer{ nullptr };
 	ComPtr<ID3D12DescriptorHeap> m_depthHeap{ nullptr };
 	ComPtr<ID3D12DescriptorHeap> m_depthSRVHeap{ nullptr };

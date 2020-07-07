@@ -11,15 +11,16 @@ using namespace Microsoft::WRL;
 using namespace DirectX;
 
 class Dx12;
-class Sphere;
+class SphereData;
 
+// ‹…‘Ì‚Ì•`‰æ‚ğs‚¤ƒNƒ‰ƒX
 class SphereRenderer
 {
 public:
 
 	SphereRenderer(std::weak_ptr<Dx12> dx12);
 
-	void AddSphere(std::shared_ptr<Sphere> sphere);
+	std::weak_ptr<SphereData> CreateSphere(const XMFLOAT3& position, const XMFLOAT4& color, float radius);
 
 	void Update();
 	void Draw();
@@ -41,7 +42,7 @@ public:
 private:
 
 	std::weak_ptr<Dx12> m_dx12;
-	std::vector<std::shared_ptr<Sphere>> m_spheres;
+	std::vector<std::shared_ptr<SphereData>> m_spheres;
 
 	const int m_uMax{ 30 };
 	const int m_vMax{ 15 };

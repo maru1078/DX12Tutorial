@@ -147,6 +147,11 @@ void Dx12::SetScissorRect()
 	m_cmdList->RSSetScissorRects(1, &m_scissorRect);
 }
 
+void Dx12::SetEyePosition(const XMFLOAT3 & position)
+{
+	m_eye = position;
+}
+
 void Dx12::BeginDraw()
 {
 	m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
@@ -172,8 +177,7 @@ void Dx12::BeginDraw()
 
 void Dx12::Update()
 {
-	//m_angle += 0.01f;
-	//*m_world = XMMatrixRotationY(m_angle);
+
 }
 
 void Dx12::SetDepthTexture()
@@ -487,11 +491,6 @@ ComPtr<ID3D12Device> Dx12::Device() const
 ComPtr<ID3D12GraphicsCommandList> Dx12::CommandList() const
 {
 	return m_cmdList;
-}
-
-XMMATRIX Dx12::WorldMat() const
-{
-	return XMMatrixIdentity();
 }
 
 XMMATRIX Dx12::ViewMat() const

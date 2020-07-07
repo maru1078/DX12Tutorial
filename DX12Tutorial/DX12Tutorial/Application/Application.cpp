@@ -1,7 +1,6 @@
 #include "Application.h"
 
 #include "../DX12/Dx12.h"
-#include "../Sphere/Sphere.h"
 #include "../SphereRenderer/SphereRenderer.h"
 #include "../PeraPolygon/PeraPolygon.h"
 
@@ -50,21 +49,20 @@ void Application::Initialize()
 	ShowWindow(m_hWnd, SW_SHOW);
 
 	m_dx12 = std::make_shared<Dx12>(m_windowWidth, m_windowHeight, m_hWnd);
-	auto sphere1 = std::make_shared<Sphere>(
-		m_dx12,
-		XMFLOAT3{ 0.0f, 0.0f, 0.0f },       // position
-		XMFLOAT4{ 1.0f, 0.0f, 0.0f, 1.0f }, // color
-		1.0f);                              // radius
-
-	auto sphere2 = std::make_shared<Sphere>(
-		m_dx12,
-		XMFLOAT3{ -1.0f, 0.0f, -2.0f },      // position
-		XMFLOAT4{ 1.0f, 1.0f, 0.0f, 1.0f }, // color
-		0.5f);    // radius
 
 	m_sphereRenderer = std::make_shared<SphereRenderer>(m_dx12);
-	m_sphereRenderer->AddSphere(sphere1);
-	m_sphereRenderer->AddSphere(sphere2);
+
+	m_sphereRenderer->CreateSphere(
+		XMFLOAT3{ 0.0f, 0.0f, 0.0f },
+		XMFLOAT4{ 1.0f, 0.0f, 0.0f, 1.0f },
+		1.0f
+	);
+
+	m_sphereRenderer->CreateSphere(
+		XMFLOAT3{ 2.0f, 0.0f, 0.0f },
+		XMFLOAT4{ 1.0f, 1.0f, 0.0f, 1.0f },
+		0.5f
+	);
 
 	m_pera = std::make_shared<PeraPolygon>(m_dx12);
 }
@@ -73,6 +71,7 @@ void Application::Run()
 {
 	Initialize();
 	m_dx12->SetBackGroundColor(0.5f, 0.5f, 0.5f);
+	float angle = 0.0f;
 
 	MSG msg{};
 	while (msg.message != WM_QUIT)
@@ -83,10 +82,15 @@ void Application::Run()
 			DispatchMessage(&msg);
 		}
 
+		angle += 0.01f;
+
 		// DirectX12‚Ìˆ—
 		m_dx12->BeginDraw();
 
-		//m_dx12->Update();
+		m_dx12->Update();
+
+		// ‚Æ‚è‚ ‚¦‚¸ŽOŠpŠÖ”‚ðŽg‚Á‚Ä–³—‚â‚èˆÚ“®
+		m_dx12->SetEyePosition(XMFLOAT3{ std::sin(angle) * 5, 0.0f, -std::cos(angle) * 5 });
 
 		m_sphereRenderer->Update();
 		m_sphereRenderer->Draw();
