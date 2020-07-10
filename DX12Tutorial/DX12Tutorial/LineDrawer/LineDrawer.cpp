@@ -47,50 +47,62 @@ LineDrawer::LineDrawer(std::weak_ptr<Dx12> dx12, const XMFLOAT4& color)
 
 void LineDrawer::Draw()
 {
-	// レンダーターゲットセット
-	m_dx12.lock()->SetRenderTarget();
+	// 頂点座標を更新（どの頂点を使うかが変わってくる）
+	UpdateVertices();
 
-	// ビューポートセット
-	m_dx12.lock()->SetViewPort();
+	// 「頂点2つを選んで描画」を繰り返す
+	for (int i = 0; i < m_vertices.size() - 1; ++i)
+	{
+		// 頂点バッファーの更新
+		XMFLOAT2* vertMap{ nullptr };
+		m_vertexBuffer->Map(0, nullptr, (void**)&vertMap);
+		std::copy(m_vertices.begin() + i, m_vertices.begin() + i + 2, vertMap);
+		m_vertexBuffer->Unmap(0, nullptr);
 
-	// シザー矩形セット
-	m_dx12.lock()->SetScissorRect();
+		// レンダーターゲットセット
+		m_dx12.lock()->SetRenderTarget();
 
-	// ルートシグネチャセット
-	m_dx12.lock()->CommandList()->SetGraphicsRootSignature(m_rootSignature.Get());
+		// ビューポートセット
+		m_dx12.lock()->SetViewPort();
 
-	// パイプラインセット
-	m_dx12.lock()->CommandList()->SetPipelineState(m_pipeline.Get());
+		// シザー矩形セット
+		m_dx12.lock()->SetScissorRect();
 
-	// 頂点バッファービューセット
-	m_dx12.lock()->CommandList()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+		// ルートシグネチャセット
+		m_dx12.lock()->CommandList()->SetGraphicsRootSignature(m_rootSignature.Get());
 
-	// ヒープセット
-	m_dx12.lock()->CommandList()->SetDescriptorHeaps(1, m_cbvHeap.GetAddressOf());
+		// パイプラインセット
+		m_dx12.lock()->CommandList()->SetPipelineState(m_pipeline.Get());
 
-	// ヒープとルートパラメーターの関連付け
-	m_dx12.lock()->CommandList()->SetGraphicsRootDescriptorTable(
-		0,
-		m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+		// 頂点バッファービューセット
+		m_dx12.lock()->CommandList()->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 
-	// プリミティブトポロジーセット
-	m_dx12.lock()->CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINESTRIP);
+		// ヒープセット
+		m_dx12.lock()->CommandList()->SetDescriptorHeaps(1, m_cbvHeap.GetAddressOf());
 
-	// ドローコール
-	m_dx12.lock()->CommandList()->DrawInstanced(m_vertices.size(), 1, 0, 0);
+		// ヒープとルートパラメーターの関連付け
+		m_dx12.lock()->CommandList()->SetGraphicsRootDescriptorTable(
+			0,
+			m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 
-	// コマンドリスト実行
-	m_dx12.lock()->ExecuteCommandList();
+		// プリミティブトポロジーセット
+		m_dx12.lock()->CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+
+		// ドローコール
+		m_dx12.lock()->CommandList()->DrawInstanced(2, 1, 0, 0);
+
+		// コマンドリスト実行
+		m_dx12.lock()->ExecuteCommandList();
+	}
+}
+
+void LineDrawer::AddPosition(const XMFLOAT3 & worldPos)
+{
+	m_worldPositions.push_back(worldPos);
 }
 
 bool LineDrawer::CreateVertexBuffer()
 {
-	// とりあえず仮の頂点を作る
-	m_vertices.push_back(XMFLOAT2{ 0.0f, 0.0f });
-	m_vertices.push_back(XMFLOAT2{ 960.0f, 540.0f });
-	m_vertices.push_back(XMFLOAT2{ 960.0f, 0.0f });
-	m_vertices.push_back(XMFLOAT2{ 0.0f, 540.0f });
-
 	D3D12_HEAP_PROPERTIES heapProp{};
 	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
 	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -102,7 +114,7 @@ bool LineDrawer::CreateVertexBuffer()
 	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 	resDesc.Format = DXGI_FORMAT_UNKNOWN;
 	resDesc.Height = 1;
-	resDesc.Width = sizeof(m_vertices[0]) * m_vertices.size();
+	resDesc.Width = sizeof(XMFLOAT2) * 2; // 頂点2つ分
 	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	resDesc.MipLevels = 1;
 	resDesc.SampleDesc.Count = 1;
@@ -117,14 +129,6 @@ bool LineDrawer::CreateVertexBuffer()
 		IID_PPV_ARGS(m_vertexBuffer.ReleaseAndGetAddressOf()));
 
 	if (FAILED(result)) return false;
-
-	XMFLOAT2* vertMap{ nullptr };
-	result = m_vertexBuffer->Map(0, nullptr, (void**)&vertMap);
-
-	if (FAILED(result)) return false;
-
-	std::copy(m_vertices.begin(), m_vertices.end(), vertMap);
-	m_vertexBuffer->Unmap(0, nullptr);
 
 	return true;
 }
@@ -169,7 +173,7 @@ bool LineDrawer::CreateConstantBuffer()
 
 	XMFLOAT4* colMap{ nullptr };
 	result = m_constantBuffer->Map(0, nullptr, (void**)&colMap);
-	
+
 	if (FAILED(result)) return false;
 
 	*colMap = m_color;
@@ -284,7 +288,7 @@ bool LineDrawer::CreateRootSignature()
 bool LineDrawer::CreatePipelineState()
 {
 	// インプットレイアウト
-	D3D12_INPUT_ELEMENT_DESC inputLayout[] = 
+	D3D12_INPUT_ELEMENT_DESC inputLayout[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
@@ -337,4 +341,208 @@ bool LineDrawer::CreatePipelineState()
 	if (FAILED(result)) return false;
 
 	return true;
+}
+
+XMFLOAT2 LineDrawer::ToScreenPos(const XMFLOAT3 & worldPos)
+{
+	auto view = m_dx12.lock()->ViewMat();
+	auto projection = m_dx12.lock()->ProjectionMat();
+
+	// ウィンドウサイズはとりあえずべた書きで。
+	auto screen = XMMatrixSet(
+		960.0f / 2.0f,           0.0f, 0.0f, 0.0f,
+		         0.0f, -540.0f / 2.0f, 0.0f, 0.0f,
+		         0.0f,           0.0f, 1.0f, 0.0f,
+		960.0f / 2.0f,  540.0f / 2.0f, 0.0f, 1.0f
+	);
+
+	auto resultVec = XMVectorSet(worldPos.x, worldPos.y, worldPos.z, 0.0f);
+	resultVec = XMVector3Transform(resultVec, view);
+	resultVec = XMVector3Transform(resultVec, projection);
+
+	// w で割ってあげなきゃいけないっぽい
+	resultVec = XMVectorSet(
+		resultVec.m128_f32[0] / resultVec.m128_f32[3], // x / w
+		resultVec.m128_f32[1] / resultVec.m128_f32[3], // y / w,
+		resultVec.m128_f32[2] / resultVec.m128_f32[3], // z / w,
+		resultVec.m128_f32[3] / resultVec.m128_f32[3]  // w / w,
+	);
+
+	resultVec = XMVector3Transform(resultVec, screen);
+
+	auto result = XMFLOAT2{ resultVec.m128_f32[0], resultVec.m128_f32[1] };
+
+	return result;
+}
+
+std::vector<XMFLOAT2> LineDrawer::ToScreenPosAll()
+{
+	std::vector<XMFLOAT2> result;
+
+	for (auto& pos : m_worldPositions)
+	{
+		result.push_back(ToScreenPos(pos));
+	}
+
+	return result;
+}
+
+std::vector<XMFLOAT2> LineDrawer::SelectVertex(const std::vector<XMFLOAT2>& screenPositions)
+{
+	std::vector<XMFLOAT2> result;
+	std::vector<XMFLOAT2> inScreenVertices;
+
+	// 画面内のものを探す
+	{
+		for (auto& vertex : screenPositions)
+		{
+			if (vertex.x >= 0 && vertex.y >= 0 && vertex.x <= 960 && vertex.y <= 540)
+			{
+				inScreenVertices.push_back(vertex);
+			}
+		}
+	}
+
+	// すでに選んだ頂点を消す際に必要なインデックスを保持しておく
+	int eraseIndex = -1;
+
+	// 追加する頂点をいったん記録しておくための変数
+	XMFLOAT2 v{ 960.0f, 540.0f };
+
+	// 1つ目の点（一番上の点）を探す
+	{
+		for (int i = 0; i < inScreenVertices.size(); ++i)
+		{
+			if (inScreenVertices.at(i).y < v.y)
+			{
+				v = inScreenVertices.at(i);
+				eraseIndex = i;
+			}
+		}
+
+		// 追加＆削除
+		result.push_back(v);
+		inScreenVertices.erase(inScreenVertices.begin() + eraseIndex);
+	}
+
+	float maxAngle = 0.0f;
+	// 2つ目の点を探す
+	{
+		// x 軸と平行なベクトル
+		XMVECTOR vec = XMVectorSet(
+			0.0f - result[0].x, 0.0f, 0.0f, 0.0f);
+
+		// なす角が一番大きいものを探す
+		for (int i = 0; i < inScreenVertices.size(); ++i)
+		{
+			XMVECTOR difference = XMVectorSubtract(XMLoadFloat2(&inScreenVertices[i]), XMLoadFloat2(&result[0]));
+
+			float cos = XMVector2Dot(vec, difference).m128_f32[0] / (XMVector2Length(vec) * XMVector2Length(difference)).m128_f32[0];
+
+			float angle = XMConvertToDegrees(std::acos(cos));
+
+			if (angle > maxAngle)
+			{
+				maxAngle = angle;
+				v = inScreenVertices[i];
+				eraseIndex = i;
+			}
+		}
+
+		// 追加＆削除
+		result.push_back(v);
+		inScreenVertices.erase(inScreenVertices.begin() + eraseIndex);
+	}
+
+	// 3つ目以降の点を探す
+	{
+		// 6つの頂点が選ばれた かつ スクリーン上に頂点がまだある間ループ
+		while (result.size() < 6 && inScreenVertices.size() > 0)
+		{
+			maxAngle = 0.0f;
+			eraseIndex = -1;
+			int curIndex = result.size() - 1;
+
+			for (int i = 0; i < inScreenVertices.size(); ++i)
+			{
+				// 最新の点と1つ前の点のベクトル
+				XMVECTOR vec1 = -XMVectorSubtract(
+					XMLoadFloat2(&result.at(curIndex)),
+					XMLoadFloat2(&result.at(curIndex - 1))
+				);
+
+				// 最新の点と次の点のベクトル
+				XMVECTOR vec2 = XMVectorSubtract(
+					XMLoadFloat2(&inScreenVertices.at(i)),
+					XMLoadFloat2(&result.at(curIndex))
+				);
+
+				// なす角を求める
+				float cos = XMVector2Dot(vec1, vec2).m128_f32[0] / (XMVector2Length(vec1) * XMVector2Length(vec2)).m128_f32[0];
+				float angle = XMConvertToDegrees(std::acos(cos));
+
+				// 角度が一番大きい
+				if (angle > maxAngle)
+				{
+					// 最新の点と1番目の点のベクトル
+					XMVECTOR vec3 = XMVectorSubtract(
+						XMLoadFloat2(&result.at(0)),
+						XMLoadFloat2(&result.at(curIndex))
+					);
+
+					// なす角を求める
+					float cos2 = XMVector2Dot(vec1, vec3).m128_f32[0] / (XMVector2Length(vec1) * XMVector2Length(vec3)).m128_f32[0];
+					float angle2 = XMConvertToDegrees(std::acos(cos2));
+
+					// 最初の点と結んだ方が角度が大きいなら
+					if (angle2 > angle)
+					{
+						// 角度を保持
+						maxAngle = angle2;
+
+						// 何も消さない
+						eraseIndex = -1;
+
+						// 次の点へ
+						continue;
+					}
+
+					// 角度を保持
+					maxAngle = angle;
+
+					// 頂点座標を保持
+					v = inScreenVertices.at(i);
+
+					// 削除対象のインデックスを保持
+					eraseIndex = i;
+				}
+			}
+
+			// 削除対象があるなら消す
+			if (eraseIndex >= 0)
+			{
+				// 追加＆削除
+				result.push_back(v);
+				inScreenVertices.erase(inScreenVertices.begin() + eraseIndex);
+			}
+			// 削除対象がない = 最初の点と結んだ方が大きい = 図形が完成している
+			else
+			{
+				// whileループ終了
+				break;
+			}
+		}
+	}
+
+	// 最初の点を追加して図形を完成
+	result.push_back(result.at(0));
+
+	return result;
+}
+
+void LineDrawer::UpdateVertices()
+{
+	m_vertices.clear();
+
+	m_vertices = SelectVertex(ToScreenPosAll());
 }

@@ -9,6 +9,7 @@ class Dx12;
 class SphereRenderer;
 class PeraPolygon;
 class LineDrawer;
+class Keyboard;
 
 class Application
 {
@@ -32,6 +33,7 @@ private:
 	std::shared_ptr<SphereRenderer> m_sphereRenderer;
 	std::shared_ptr<PeraPolygon> m_pera;
 	std::shared_ptr<LineDrawer> m_lineDrawer;
+	std::shared_ptr<Keyboard> m_keyboard;
 };
 
 #endif // !APPLICATION_H_

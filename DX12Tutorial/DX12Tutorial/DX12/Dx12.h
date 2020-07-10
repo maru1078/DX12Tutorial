@@ -76,7 +76,7 @@ private:
 	D3D12_VIEWPORT m_viewPort{};
 	D3D12_RECT m_scissorRect{};
 	float m_clearColor[4]{ 0.0f, 0.0f, 0.0f, 0.0f };
-	XMFLOAT3 m_eye{ 0.0f, 0.0f, -5.0f };
+	XMFLOAT3 m_eye{ 0.0f, 0.0f, -15.0f };
 	XMFLOAT3 m_target{ 0.0f, 0.0f, 0.0f };
 	XMFLOAT3 m_up{ 0.0f, 1.0f, 0.0f };
 	ComPtr<ID3D12Resource> m_depthBuffer{ nullptr };

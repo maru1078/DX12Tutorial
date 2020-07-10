@@ -124,6 +124,7 @@
   <ItemGroup>
     <ClCompile Include="Application\Application.cpp" />
     <ClCompile Include="DX12\Dx12.cpp" />
+    <ClCompile Include="Keyboard\Keyboard.cpp" />
     <ClCompile Include="LineDrawer\LineDrawer.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PeraPolygon\PeraPolygon.cpp" />
@@ -133,6 +134,8 @@
   <ItemGroup>
     <ClInclude Include="Application\Application.h" />
     <ClInclude Include="DX12\Dx12.h" />
+    <ClInclude Include="Keyboard\Keyboard.h" />
+    <ClInclude Include="Keyboard\KeyType.h" />
     <ClInclude Include="LineDrawer\LineDrawer.h" />
     <ClInclude Include="PeraPolygon\PeraPolygon.h" />
     <ClInclude Include="SphereData\SphereData.h" />

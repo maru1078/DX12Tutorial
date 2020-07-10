@@ -2,8 +2,13 @@
 
 #include "../DX12/Dx12.h"
 #include "../SphereRenderer/SphereRenderer.h"
+#include "../SphereData/SphereData.h"
 #include "../PeraPolygon/PeraPolygon.h"
 #include "../LineDrawer/LineDrawer.h"
+#include "../Keyboard/Keyboard.h"
+
+#pragma comment(lib, "dinput8.lib")
+#pragma comment(lib, "dxguid.lib")
 
 LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -53,21 +58,59 @@ void Application::Initialize()
 
 	m_sphereRenderer = std::make_shared<SphereRenderer>(m_dx12);
 
-	m_sphereRenderer->CreateSphere(
+	auto s1 = m_sphereRenderer->CreateSphere(
 		XMFLOAT3{ 0.0f, 0.0f, 0.0f },
 		XMFLOAT4{ 1.0f, 0.0f, 0.0f, 1.0f },
 		1.0f
 	);
 
-	m_sphereRenderer->CreateSphere(
-		XMFLOAT3{ 2.0f, 0.0f, 0.0f },
-		XMFLOAT4{ 1.0f, 1.0f, 0.0f, 1.0f },
-		0.5f
+	auto s2 = m_sphereRenderer->CreateSphere(
+		XMFLOAT3{ -2.0f, 3.0f, 1.0f },
+		XMFLOAT4{ 0.0f, 0.0f, 1.0f, 1.0f },
+		0.1f
+	);
+
+	auto s3 = m_sphereRenderer->CreateSphere(
+		XMFLOAT3{ 5.0f, 2.0f, 1.0f },
+		XMFLOAT4{ 0.0f, 1.0f, 0.0f, 1.0f },
+		0.1f
+	);
+
+	auto s4 = m_sphereRenderer->CreateSphere(
+		XMFLOAT3{ -3.0f, -2.0f, 0.0f },
+		XMFLOAT4{ 1.0f, 0.0f, 0.0f, 1.0f },
+		0.1f
+	);
+
+	auto s5 = m_sphereRenderer->CreateSphere(
+		XMFLOAT3{ -5.0f, 1.0f, 2.0f },
+		XMFLOAT4{ 0.0f, 1.0f, 0.0f, 1.0f },
+		0.1f
+	);
+
+	auto s6 = m_sphereRenderer->CreateSphere(
+		XMFLOAT3{ 3.0f, -1.0f, -2.0f },
+		XMFLOAT4{ 1.0f, 0.0f, 0.0f, 1.0f },
+		0.1f
+	);
+
+	auto s7 = m_sphereRenderer->CreateSphere(
+		XMFLOAT3{ 2.0f, -3.0f, 1.0f },
+		XMFLOAT4{ 0.0f, 0.0f, 1.0f, 1.0f },
+		0.1f
 	);
 
 	m_lineDrawer = std::make_shared<LineDrawer>(m_dx12, XMFLOAT4{ 1.0f, 1.0f, 1.0f, 1.0f });
+	m_lineDrawer->AddPosition(s2.lock()->position);
+	m_lineDrawer->AddPosition(s3.lock()->position);
+	m_lineDrawer->AddPosition(s4.lock()->position);
+	m_lineDrawer->AddPosition(s5.lock()->position);
+	m_lineDrawer->AddPosition(s6.lock()->position);
+	m_lineDrawer->AddPosition(s7.lock()->position);
 
 	m_pera = std::make_shared<PeraPolygon>(m_dx12);
+
+	m_keyboard = std::make_shared<Keyboard>(m_windowClass.hInstance, m_hWnd);
 }
 
 void Application::Run()
@@ -75,6 +118,7 @@ void Application::Run()
 	Initialize();
 	m_dx12->SetBackGroundColor(0.5f, 0.5f, 0.5f);
 	float angle = 0.0f;
+	float radius = 10.0f;
 
 	MSG msg{};
 	while (msg.message != WM_QUIT)
@@ -85,7 +129,16 @@ void Application::Run()
 			DispatchMessage(&msg);
 		}
 
-		angle += 0.01f;
+		m_keyboard->Update();
+
+		if (m_keyboard->GetKey(KeyType::Left))
+		{
+			angle -= 0.02f;
+		}
+		if (m_keyboard->GetKey(KeyType::Right))
+		{
+			angle += 0.02f;
+		}
 
 		// DirectX12‚Ìˆ—
 		m_dx12->BeginDraw();
@@ -93,7 +146,7 @@ void Application::Run()
 		m_dx12->Update();
 
 		// ‚Æ‚è‚ ‚¦‚¸ŽOŠpŠÖ”‚ðŽg‚Á‚Ä–³—‚â‚èˆÚ“®
-		m_dx12->SetEyePosition(XMFLOAT3{ std::sin(angle) * 5, 0.0f, -std::cos(angle) * 5 });
+		m_dx12->SetEyePosition(XMFLOAT3{ std::sin(angle) * radius, 0.0f, -std::cos(angle) * radius });
 
 		m_sphereRenderer->Update();
 		m_sphereRenderer->Draw();
@@ -106,6 +159,8 @@ void Application::Run()
 
 		m_dx12->EndDraw();
 	}
+
+	Finalize();
 }
 
 void Application::Finalize()

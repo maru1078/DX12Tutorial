@@ -21,6 +21,8 @@ public:
 
 	void Draw();
 
+	void AddPosition(const XMFLOAT3& worldPos);
+
 public:
 
 	bool CreateVertexBuffer();
@@ -37,9 +39,16 @@ public:
 
 private:
 
-	std::weak_ptr<Dx12> m_dx12;
+	XMFLOAT2 ToScreenPos(const XMFLOAT3& worldPos);
+	std::vector<XMFLOAT2> ToScreenPosAll();
+	std::vector<XMFLOAT2> SelectVertex(const std::vector<XMFLOAT2>& screenPositions);
+	void UpdateVertices();
 
+private:
+
+	std::weak_ptr<Dx12> m_dx12;
 	XMFLOAT4 m_color;
+	std::vector<XMFLOAT3> m_worldPositions;
 
 	// ’¸“_ŠÖ˜A
 	std::vector<XMFLOAT2> m_vertices;
